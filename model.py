@@ -18,7 +18,7 @@ class CavemanGPTAttentionHead(nn.Module):
         self.W_v = nn.Parameter(torch.rand(cfg['output_dim'], emb_dim))
 
         self.softmax = nn.Softmax(dim=-1)
-
+        self.dropout = nn.Dropout(cfg['dropout'])
         self.d_k = hidden_dim
 
     def forward(self, token_emb, mask):
@@ -32,7 +32,7 @@ class CavemanGPTAttentionHead(nn.Module):
         inner_prod /= self.d_k ** 0.5
         inner_prod.masked_fill(mask == 0, float('-inf'))
         softmax = self.softmax(inner_prod)
-        return softmax @ V.T
+        return self.dropout(softmax @ V.T)
 
 
 class CavemanGPTAttentionBlock(nn.Module):
@@ -52,13 +52,15 @@ class CaveManGPTBlock(nn.Module):
         super().__init__()
 
         self.layernorm = nn.LayerNorm(emb_dim)
-        self.mlp = nn.Linear(emb_dim, emb_dim)
+        self.act_fn = nn.ReLU()
+        self.mlp = nn.Sequential(nn.Linear(emb_dim, emb_dim), self.act_fn)
         self.attention = CavemanGPTAttentionBlock(emb_dim, cfg)
+        self.dropout = nn.Dropout(cfg['dropout'])
 
     def forward(self, token_emb, mask):
         h = self.attention(token_emb, mask) + token_emb
         h = self.layernorm(h)
-        return self.layernorm(self.mlp(h) + h)
+        return self.layernorm(self.dropout(self.mlp(h)) + h)
 
 
 class CavemanGPT(nn.Module):
@@ -66,12 +68,17 @@ class CavemanGPT(nn.Module):
         super().__init__()
 
         self.token_emb = nn.Embedding(cfg['num_embs'], cfg['emb_dim'])
+        self.pos_emb = nn.Embedding(cfg['block_size'], cfg['emb_dim'])
+
         self.blocks = nn.ModuleList(([CaveManGPTBlock(cfg['emb_dim'], cfg['block_cfg'])
                                                  for i in range(cfg['num_blocks'])]))
         self.lm_head = nn.Linear(cfg['emb_dim'], cfg['num_embs'])
+        self.dropout = nn.Dropout(cfg['input_emb_dropout'])
 
     def forward(self, input_ids, mask, labels=None):
-        h = self.token_emb(input_ids)
+        pos_ids = torch.arange(0, input_ids.shape[-1])
+        h = self.token_emb(input_ids) + self.pos_emb(pos_ids)
+        h = self.dropout(h)
 
         for block in self.blocks:
             h = block(token_emb=h, mask=mask)

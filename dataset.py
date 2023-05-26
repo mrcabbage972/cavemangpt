@@ -4,7 +4,7 @@ from typing import List
 import torch
 from torch.utils.data import Dataset
 
-from cfg import alphabet_map
+from cfg import alphabet_map, model_cfg
 
 
 class CavemanGPTDataset(Dataset):
@@ -22,7 +22,7 @@ class CavemanGPTDataset(Dataset):
         self.pad_ids(block_size, labels, -100)
 
         self.input_ids = input_ids
-        self.labels = labels # TODO: not ideal that label is always last token
+        self.labels = labels
 
     def pad_ids(self, block_size, input_ids, pad_value=0):
         for idx in range(len(input_ids)):
@@ -48,5 +48,5 @@ class CavemanGPTDataset(Dataset):
 
 
 input_texts = ["abc" * (i+1) for i in range(5)]
-ds = CavemanGPTDataset(input_texts, block_size=8)
+ds = CavemanGPTDataset(input_texts, block_size=model_cfg['block_size'])
 print(ds[4])
