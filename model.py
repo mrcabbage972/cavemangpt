@@ -53,7 +53,9 @@ class CaveManGPTBlock(nn.Module):
 
         self.layernorm = nn.LayerNorm(emb_dim)
         self.act_fn = nn.ReLU()
-        self.mlp = nn.Sequential(nn.Linear(emb_dim, emb_dim), self.act_fn)
+        self.mlp = nn.Sequential(nn.Linear(emb_dim, 4 * emb_dim),
+                                 self.act_fn,
+                                 nn.Linear(4 * emb_dim, emb_dim))
         self.attention = CavemanGPTAttentionBlock(emb_dim, cfg)
         self.dropout = nn.Dropout(cfg['dropout'])
 
